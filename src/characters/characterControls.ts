@@ -9,7 +9,7 @@ export class CharacterControls {
         this.test = test;
     }
 
-    public update() {
-        
+    public update(test: string) {
+
     }
 }
