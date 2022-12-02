@@ -208,6 +208,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         }
 
         let rigidBody = world.createRigidBody(bodyDesc);
+        rigidBody.setDominanceGroup(10);
 
         let collider;
         if (colliderType === 'cube') {
@@ -343,7 +344,6 @@ import('@dimforge/rapier3d').then(RAPIER => {
         model.traverse(function (object: any) {
             if (object.isMesh) {
                 object.castShadow = true;
-                object.material.wireframe = true;
             } 
         })
         scene.add(model)
@@ -359,7 +359,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         // Prepare rigid body for character physics wrap
         let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(-1, 5.0, 1);
         let rigidBody = world.createRigidBody(bodyDesc);
-        let dynamicCollider = RAPIER.ColliderDesc.capsule(0.05, 0.25);
+        let dynamicCollider = RAPIER.ColliderDesc.capsule(0.15, 0.21);
         world.createCollider(dynamicCollider, rigidBody);
 
         // Character bind character to controls
