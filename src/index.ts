@@ -357,7 +357,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         })
 
         // Prepare rigid body for character physics wrap
-        let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(-1, 5.0, 1);
+        let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(model.position.x, model.position.y + 3, model.position.z + 0.5).setCanSleep(false);
         let rigidBody = world.createRigidBody(bodyDesc);
         let dynamicCollider = RAPIER.ColliderDesc.capsule(0.15, 0.21);
         world.createCollider(dynamicCollider, rigidBody);
