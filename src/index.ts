@@ -146,8 +146,6 @@ if (DEBUG) {
 const loadingManager = new THREE.LoadingManager(
     // loaded
     () => {
-        console.log('loaded');
-
         // Wrap loading transition for smooth UX
         window.setTimeout(() => {
             // fade out shader
@@ -169,7 +167,7 @@ const loadingManager = new THREE.LoadingManager(
     },
     // Progress
     (itemUrl, itemsLoaded, itemsTotal) => {
-        console.log('progres => ', itemUrl, itemsLoaded, itemsTotal);
+        camera.position.set(0, 24, 6);
         const progressRatio = itemsLoaded / itemsTotal
         loadingBarElement.style.transform = `scaleX(${progressRatio})`
     }

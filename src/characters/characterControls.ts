@@ -143,6 +143,7 @@ export class CharacterControls {
             this.model.position.y = translation.y
             this.model.position.z = translation.z
             this.updateCameraTarget(cameraPositionOffset, translation.x, translation.y, translation.z)
+            this.updateLerpCameraPosition()
 
             this.walkDirection.y += this.lerp(this.storedFall, -9.81 * delta, 0.10)
             this.storedFall = this.walkDirection.y
