@@ -343,7 +343,10 @@ import('@dimforge/rapier3d').then(RAPIER => {
         const model = gltf.scene;
         console.log('model',model);
         model.traverse(function (object: any) {
-            if (object.isMesh) object.castShadow = true;
+            if (object.isMesh) {
+                object.castShadow = true;
+                object.material.wireframe = true;
+            } 
         })
         scene.add(model)
 
@@ -358,7 +361,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         // Prepare rigid body for character physics wrap
         let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(-1, 5.0, 1);
         let rigidBody = world.createRigidBody(bodyDesc);
-        let dynamicCollider = RAPIER.ColliderDesc.capsule(0.05, 0.5);
+        let dynamicCollider = RAPIER.ColliderDesc.capsule(0.05, 0.25);
         world.createCollider(dynamicCollider, rigidBody);
 
         // Character bind character to controls
