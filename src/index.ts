@@ -5,6 +5,8 @@ import { RigidBody, World } from '@dimforge/rapier3d';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { CharacterControls } from './characters/characterControls';
 
+import { gsap } from 'gsap';
+
 // DEBUG
 import Stats from 'three/examples/jsm/libs/stats.module';
 import { GUI } from 'dat.gui';
@@ -20,11 +22,8 @@ scene.background = new THREE.Color(0xa8def0);
 
 // CAMERA
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-// camera.position.y = 10;
-// camera.position.z = 7;
-// camera.position.x = 0;
-camera.position.set(0, 6, 7);
-// camera.lookAt(0, 1.5, 0);
+// camera.position.set(0, 6, 7);
+camera.position.set(0, 24, 7);
 
 console.log(camera);
 
@@ -34,6 +33,9 @@ if (DEBUG) {
     cameraFolder.add(camera.position, 'x', -100, 100)
     cameraFolder.add(camera.position, 'y', -100, 100)
     cameraFolder.add(camera.position, 'z', -100, 100)
+    cameraFolder.add(camera, 'fov', 0, 100)
+    cameraFolder.add(camera, 'far', 999, 2000)
+    // cameraFolder.add(camera, 'fov', 0, 100)
     // cameraFolder.open()
 }
 
@@ -53,7 +55,7 @@ const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true
 orbitControls.enablePan = false
 orbitControls.minDistance = 5
-orbitControls.maxDistance = 15
+orbitControls.maxDistance = 20
 orbitControls.maxPolarAngle = Math.PI / 2 - 0.05 // prevent camera below ground
 orbitControls.minPolarAngle = Math.PI / 4        // prevent top down view
 // orbitControls.update();
@@ -281,6 +283,10 @@ import('@dimforge/rapier3d').then(RAPIER => {
         }
     });
 
+    gsap.to(camera.position, {
+        y: 6, z:4, duration: 4, ease: 'power3.inOut',
+    })
+
     /**
      * Animate
      */
@@ -361,13 +367,13 @@ document.addEventListener('keyup', (event) => {
 //     console.log(event);
 // }, false)
 
-document.addEventListener('pointerdown', (event) => {
-    console.log(event.pageX, event.pageY);
-}, false)
+// document.addEventListener('pointerdown', (event) => {
+//     console.log(event.pageX, event.pageY);
+// }, false)
 
-document.addEventListener('pointermove', (event) => {
-    console.log(event.pageX, event.pageY);
-}, false)
+// document.addEventListener('pointermove', (event) => {
+//     console.log(event.pageX, event.pageY);
+// }, false)
 
 // document.addEventListener('dragstart', (event) => {
 //     console.log(event);
