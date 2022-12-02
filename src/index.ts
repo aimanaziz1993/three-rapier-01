@@ -3,7 +3,7 @@ import { AmbientLight, MeshPhongMaterial } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { RigidBody, World } from '@dimforge/rapier3d';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { CharacterControls } from './characters/characterControls';
+import { CharacterControls, CONTROLLER_BODY_RADIUS } from './characters/characterControls';
 
 import { gsap } from 'gsap';
 
@@ -102,6 +102,79 @@ function loadTexture(path: string): THREE.Texture {
     texture.repeat.y = 10;
     return texture
 }
+
+/**
+ * Overlay Shaders
+ */
+const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
+const overlayMaterial = new THREE.ShaderMaterial({
+    // wireframe: true,
+    transparent: true,
+    uniforms:
+    {
+        uAlpha: { value: 1 }
+    },
+    vertexShader: `
+        void main()
+        {
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float uAlpha;
+        void main()
+        {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
+        }
+    `
+})
+const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
+scene.add(overlay);
+
+if (DEBUG) {
+    const overlayShaderFolder = gui.addFolder('Overlay Shader Plane')
+    overlayShaderFolder.add(overlay.position, 'x', 0, 100)
+    overlayShaderFolder.add(overlay.position, 'y', 0, 100)
+    overlayShaderFolder.add(overlay.position, 'z', 0, 100)
+    // cameraFolder.open()
+}
+
+/**
+ * Loading Manager
+ */
+ const loadingBarElement = document.querySelector<HTMLElement>('.loading-bar');
+const loadingManager = new THREE.LoadingManager(
+    // loaded
+    () => {
+        console.log('loaded');
+
+        // Wrap loading transition for smooth UX
+        window.setTimeout(() => {
+            // fade out shader
+            gsap.to(overlayMaterial.uniforms.uAlpha, { 
+                duration: 3, value: 0 
+            })
+
+            // Animate camera
+            gsap.to(camera.position, {
+                y: 6, z:4, duration: 4, ease: 'power3.inOut',
+            })
+
+            // hide progress bar
+            loadingBarElement.classList.add('ended');
+            loadingBarElement.style.transform = '';
+
+        }, 500)
+
+    },
+    // Progress
+    (itemUrl, itemsLoaded, itemsTotal) => {
+        console.log('progres => ', itemUrl, itemsLoaded, itemsTotal);
+        const progressRatio = itemsLoaded / itemsTotal
+        loadingBarElement.style.transform = `scaleX(${progressRatio})`
+    }
+)
+
 
 // Character Controller Definition
 var characterControls: CharacterControls
@@ -239,25 +312,39 @@ import('@dimforge/rapier3d').then(RAPIER => {
     let scale = new RAPIER.Vector3(70.0, 3.0, 70.0);
     generateTerrain(nsubdivs, scale);
 
-    const cylinderBody = body(scene, world, 'dynamic', 'cylinder',
-        { hh: 1.0, radius: 1.2 }, { x: -7, y: 30, z: 8 },
-        { x: 0, y: 1, z: 0 }, 'green');
-    bodys.push(cylinderBody);
+    const cubeBody = body(scene, world, 'dynamic', 'cube',
+        { hx: 0.5, hy: 0.5, hz: 0.5 }, { x: 0, y: 15, z: 0 },
+        { x: 0, y: 0.4, z: 0.7 }, 'orange');
+    bodys.push(cubeBody);
 
     const sphereBody = body(scene, world, 'dynamic', 'sphere',
-        { radius: 0.7 }, { x: 4, y: 30, z: 2 },
+        { radius: 0.7 }, { x: 4, y: 15, z: 2 },
         { x: 0, y: 1, z: 0 }, 'blue');
     bodys.push(sphereBody);
 
+    const sphereBody2 = body(scene, world, 'dynamic', 'sphere',
+        { radius: 0.7 }, { x: 0, y: 15, z: 0 },
+        { x: 0, y: 1, z: 0 }, 'red');
+    bodys.push(sphereBody2);
+
+    const cylinderBody = body(scene, world, 'dynamic', 'cylinder',
+        { hh: 1.0, radius: 0.7 }, { x: -7, y: 15, z: 8 },
+        { x: 0, y: 1, z: 0 }, 'green');
+    bodys.push(cylinderBody);
+
+    const coneBody = body(scene, world, 'dynamic', 'cone',
+        { hh: 1.0, radius: 1 }, { x: 7, y: 15, z: -8 },
+        { x: 0, y: 1, z: 0 }, 'purple');
+    bodys.push(coneBody);
+
     // Character Model
-    new GLTFLoader().load('models/Soldier.glb', function (gltf) {
+    new GLTFLoader(loadingManager).load('models/Soldier.glb', function (gltf) {
         console.log('gltf', gltf);
         const model = gltf.scene;
         console.log('model',model);
         model.traverse(function (object: any) {
             if (object.isMesh) object.castShadow = true;
         })
-        model.position.set(0, 3, 0);
         scene.add(model)
 
         // Prepare Animation Map
@@ -268,13 +355,30 @@ import('@dimforge/rapier3d').then(RAPIER => {
             animationsMap.set(a.name, mixer.clipAction(a))
         })
 
+        // Prepare rigid body for character physics wrap
+        let bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(-1, 5.0, 1);
+        let rigidBody = world.createRigidBody(bodyDesc);
+        let dynamicCollider = RAPIER.ColliderDesc.capsule(0.05, 0.5);
+        world.createCollider(dynamicCollider, rigidBody);
+
         // Character bind character to controls
-        characterControls = new CharacterControls('Aiman', model, mixer, animationsMap, 'Idle' , orbitControls, camera)
+        let rayOrigin = {
+            x: 0,
+            y: 0,
+            z: 0
+        }
+        let rayDir = {
+            x: 0,
+            y: -1,
+            z: 0
+        }
+        characterControls = new CharacterControls('Aiman', model, mixer, animationsMap, 'Idle', orbitControls, camera, 
+            new RAPIER.Ray(rayOrigin, rayDir), rigidBody
+        )
 
         console.log(characterControls);
 
         if (DEBUG) {
-    
             const characterFolder = gui.addFolder('Character')
             characterFolder.add(model.position, 'x', 0, 100)
             characterFolder.add(model.position, 'y', 0, 100)
@@ -282,10 +386,6 @@ import('@dimforge/rapier3d').then(RAPIER => {
             // characterFolder.open()
         }
     });
-
-    gsap.to(camera.position, {
-        y: 6, z:4, duration: 4, ease: 'power3.inOut',
-    })
 
     /**
      * Animate
@@ -302,7 +402,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         // Update Player
         // let mixerUpdateDelta = clock.getDelta();
         if (characterControls) {
-            characterControls.update(deltaTime, keysPressed);
+            characterControls.update(world, deltaTime, keysPressed);
         }
 
         world.step();
@@ -350,16 +450,16 @@ if (
     isMobile = true;
 }
 
-console.log(isMobile);
-
 // Prepare keyboard bindings listener
 const keysPressed: any = {}
 document.addEventListener('keydown', (event) => {
     (keysPressed as any)[event.key.toLowerCase()] = true;
+    keysPressed['listen'] = 'down';
 }, false)
 
 document.addEventListener('keyup', (event) => {
     (keysPressed as any)[event.key.toLowerCase()] = false
+    keysPressed['listen'] = 'up';
 }, false)
 
 

@@ -1,10 +1,13 @@
 import * as THREE from 'three';
-import { Vector3 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { Ray, RigidBody, World } from '@dimforge/rapier3d';
+import { gsap } from 'gsap';
+
+export const CONTROLLER_BODY_RADIUS = 0.28;
 
 export class CharacterControls {
 
-    test: string;
+    name: string;
     model: THREE.Group;
     mixer: THREE.AnimationMixer;
     animationsMap: Map<string, THREE.AnimationAction> = new Map();
@@ -13,6 +16,7 @@ export class CharacterControls {
     camera: THREE.Camera;
     cameraTarget = new THREE.Vector3();
     orbitControl: OrbitControls;
+    storedFall = 0;
 
     // Player temporary following camera
     followCamera: THREE.Object3D;
@@ -25,11 +29,17 @@ export class CharacterControls {
     fadeDuration: number = 0.2;
     walkVelocity = 5;
 
-    constructor(test: string, model: THREE.Group, 
+    // Physics
+    ray: Ray;
+    rigidBody: RigidBody;
+    lerp = ( x: number, y: number, a: number ) => x * ( 1 - a ) + y * a;
+
+    constructor(name: string, model: THREE.Group, 
         mixer: THREE.AnimationMixer, animationsMap: Map<string, THREE.AnimationAction>, currentAction: string,
-        orbitControl: OrbitControls, camera: THREE.Camera
+        orbitControl: OrbitControls, camera: THREE.Camera,
+        ray: Ray, rigidBody: RigidBody
         ) {
-        this.test = test;
+        this.name = name;
         this.model = model;
         this.mixer = mixer;
         this.animationsMap = animationsMap;
@@ -43,17 +53,20 @@ export class CharacterControls {
         // Camera
         this.orbitControl = orbitControl;
         this.camera = camera;
-        this.updateCameraTarget(0, 0);
+        this.updateCameraTarget(new THREE.Vector3(0, 1, 5) , 0, 0, 0);
 
         // Player temporary following camera
         this.followCamera = new THREE.Object3D();
         this.followCamera.position.copy(this.camera.position)
         this.model.add(this.followCamera);
-
         this.temp = new THREE.Vector3();
+
+        // Physics
+        this.ray = ray
+        this.rigidBody = rigidBody
     }
 
-    public update(delta: number, keyboardPressed: any) {
+    public update(world: World, delta: number, keyboardPressed: any) {
         const W = 'w'
         const A = 'a'
         const S = 's'
@@ -80,18 +93,22 @@ export class CharacterControls {
             toPlay.reset().fadeIn(this.fadeDuration).play();
 
             this.currentAction = play
+
+            // const pos = this.model.position.clone();
+            // pos.z -= 0.01;
+            // this.camera.lookAt(pos)
         }
 
         // Character current action pose
         this.mixer.update(delta);
 
-        
+        this.walkDirection.x = this.walkDirection.y = this.walkDirection.z = 0
+        let velocity = 0;
         if (this.currentAction === 'Walk') {
             // calculate towards camera direction
             var angleYCameraDirection = Math.atan2(
                 (this.camera.position.x - this.model.position.x), 
-                (this.camera.position.z - this.model.position.z));
-
+                (this.camera.position.z - this.model.position.z))
             // diagonal movement angle offset
             var directionOffset = this.directionOffset(keyboardPressed)
 
@@ -106,43 +123,78 @@ export class CharacterControls {
             this.walkDirection.applyAxisAngle(this.rotateAngle, directionOffset)
 
             // run/walk velocity
-            const velocity = this.currentAction == 'Walk' ? this.walkVelocity : this.walkVelocity;
+            velocity = this.currentAction == 'Walk' ? this.walkVelocity : this.walkVelocity
+        }
 
-            // move model & camera
-            this.model.translateZ(0.01);
-            const moveX = this.walkDirection.x * velocity * delta
-            const moveZ = this.walkDirection.z * velocity * delta
+        const translation = this.rigidBody.translation();
+        // console.log(translation);
+        if (translation.y < -40) {
+            // don't fall below ground
+            this.rigidBody.setNextKinematicTranslation( { 
+                x: 0, 
+                y: 10, 
+                z: 0 
+            });
+            
+        } else {
+            const cameraPositionOffset = this.camera.position.sub(this.model.position)
+            // console.log(cameraPositionOffset);
+            // update model and camera
+            this.model.position.x = translation.x
+            this.model.position.y = translation.y
+            this.model.position.z = translation.z
+            this.updateCameraTarget(cameraPositionOffset, translation.x, translation.y, translation.z)
 
-            this.model.position.x += moveX
-            this.model.position.z += moveZ
+            this.walkDirection.y += this.lerp(this.storedFall, -9.81 * delta, 0.10)
+            this.storedFall = this.walkDirection.y
+            this.ray.origin.x = translation.x
+            this.ray.origin.y = translation.y
+            this.ray.origin.z = translation.z
+            let hit = world.castRay(this.ray, 0.5, false, 0xfffffffff);
+            if (hit) {
+                const point = this.ray.pointAt(hit.toi);
+                let diff = translation.y - ( point.y + 0.28);
+                if (diff < 0.0) {
+                    this.storedFall = 0
+                    this.walkDirection.y = this.lerp(0, Math.abs(diff), 0.5)
+                }
+            }
+    
+            this.walkDirection.x = this.walkDirection.x * velocity * delta
+            this.walkDirection.z = this.walkDirection.z * velocity * delta
 
-            this.updateCameraTarget(moveX, moveZ)
-            this.updateLerpCameraPosition()
+            this.rigidBody.setNextKinematicTranslation( { 
+                x: translation.x + this.walkDirection.x, 
+                y: translation.y + this.walkDirection.y, 
+                z: translation.z + this.walkDirection.z 
+            });
         }
     }
 
-    private updateCameraTarget(moveX: number, moveZ: number) {
+    private updateCameraTarget(offset: THREE.Vector3, x: number, y: number, z: number ) {
         // move camera
-        this.camera.position.x += moveX
-        this.camera.position.z += moveZ
+        // console.log(this.rigidBody);
+        // const rigidTranslation = this.rigidBody.translation();
+        this.camera.position.x = x + offset.x
+        this.camera.position.y = y + offset.y
+        this.camera.position.z = z + offset.z
 
         // update camera target
-        this.cameraTarget.x = this.model.position.x
-        this.cameraTarget.y = this.model.position.y + 1
-        this.cameraTarget.z = this.model.position.z
-
+        this.cameraTarget.x = x
+        this.cameraTarget.y = y + 1
+        this.cameraTarget.z = z
         this.orbitControl.target = this.cameraTarget
     }
 
     // on development to get smooth user experience while doing rotation
     private updateLerpCameraPosition() {
-        this.temp.setFromMatrixPosition(this.followCamera.matrixWorld)
+        // this.temp.setFromMatrixPosition(this.followCamera.matrixWorld)
 
-        // this.camera.position.lerp(this.followCamera.getWorldPosition(new THREE.Vector3()), 0.05);
-        this.camera.position.lerp(this.temp, 0.02);
+        // this.camera.position.lerp(this.followCamera.getWorldPosition(new THREE.Vector3()), 0.03);
+        // // this.camera.position.lerp(this.temp, 0.02);
 
         const pos = this.model.position.clone();
-        pos.y += 0.02;
+        pos.z += 0.01;
         this.camera.lookAt(pos)
     }
 
