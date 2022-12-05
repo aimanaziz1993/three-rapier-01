@@ -153,7 +153,7 @@ export class CharacterControls {
             let hit = world.castRay(this.ray, 0.5, false, 0xfffffffff);
             if (hit) {
                 const point = this.ray.pointAt(hit.toi);
-                let diff = translation.y - ( point.y + 0.20);
+                let diff = translation.y - ( point.y + 0.28);
                 if (diff < 0.0) {
                     this.storedFall = 0
                     this.walkDirection.y = this.lerp(0, Math.abs(diff), 0.5)
