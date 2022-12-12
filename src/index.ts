@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AmbientLight, MeshPhongMaterial } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { RigidBody, World } from '@dimforge/rapier3d';
+import { RigidBody, Vector3, World } from '@dimforge/rapier3d';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { CharacterControls, CONTROLLER_BODY_RADIUS } from './characters/characterControls';
 
@@ -142,7 +142,8 @@ if (DEBUG) {
 /**
  * Loading Manager
  */
- const loadingBarElement = document.querySelector<HTMLElement>('.loading-bar');
+let sceneReady = false;
+const loadingBarElement = document.querySelector<HTMLElement>('.loading-bar');
 const loadingManager = new THREE.LoadingManager(
     // loaded
     () => {
@@ -164,6 +165,10 @@ const loadingManager = new THREE.LoadingManager(
 
         }, 500)
 
+        window.setTimeout(() => {
+            sceneReady = true;
+        }, 5000)
+
     },
     // Progress
     (itemUrl, itemsLoaded, itemsTotal) => {
@@ -172,7 +177,6 @@ const loadingManager = new THREE.LoadingManager(
         loadingBarElement.style.transform = `scaleX(${progressRatio})`
     }
 )
-
 
 // Character Controller Definition
 var characterControls: CharacterControls
@@ -184,7 +188,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
         colliderType: 'cube' | 'sphere' | 'cylinder' | 'cone', dimension: any,
         translation: { x: number, y: number, z: number },
         rotation: { x: number, y: number, z: number },
-        color: string): { rigid: RigidBody, mesh: THREE.Mesh } {
+        color: string, name: string): { rigid: RigidBody, mesh: THREE.Mesh } {
 
         let bodyDesc
 
@@ -238,8 +242,30 @@ import('@dimforge/rapier3d').then(RAPIER => {
         }
 
         const threeMesh = new THREE.Mesh(bufferGeometry, new MeshPhongMaterial({ color: color }));
+        
+        threeMesh.name = name;
         threeMesh.castShadow = true;
         threeMesh.receiveShadow = true;
+
+        let elemClass;
+        if (name === 'cubeBody') {
+            elemClass = 'point-0';
+        } else if (name === 'sphereBody1') {
+            elemClass = 'point-3';
+        } else if (name === 'sphereBody2') {
+            elemClass = 'point-4';
+        } else if (name === 'cylinderBody') {
+            elemClass = 'point-1';
+        } else if (name === 'coneBody') {
+            elemClass = 'point-2';
+        }
+
+        const point = {
+            position: new THREE.Vector3(threeMesh.position.x, threeMesh.position.y, threeMesh.position.z),
+            element: document.querySelector<HTMLElement>(`.${elemClass}`),
+            name: name
+        }
+        threeMesh.userData = point;
         scene.add(threeMesh);
 
         return { rigid: rigidBody, mesh: threeMesh };
@@ -313,27 +339,27 @@ import('@dimforge/rapier3d').then(RAPIER => {
 
     const cubeBody = body(scene, world, 'dynamic', 'cube',
         { hx: 0.5, hy: 0.5, hz: 0.5 }, { x: 0, y: 15, z: 0 },
-        { x: 0, y: 0.4, z: 0.7 }, 'orange');
+        { x: 0, y: 0.4, z: 0.7 }, 'orange', 'cubeBody');
     bodys.push(cubeBody);
 
     const sphereBody = body(scene, world, 'dynamic', 'sphere',
         { radius: 0.7 }, { x: 4, y: 15, z: 2 },
-        { x: 0, y: 1, z: 0 }, 'blue');
+        { x: 0, y: 1, z: 0 }, 'blue', 'sphereBody1');
     bodys.push(sphereBody);
 
     const sphereBody2 = body(scene, world, 'dynamic', 'sphere',
         { radius: 0.7 }, { x: 0, y: 15, z: 0 },
-        { x: 0, y: 1, z: 0 }, 'red');
+        { x: 0, y: 1, z: 0 }, 'red', 'sphereBody2');
     bodys.push(sphereBody2);
 
     const cylinderBody = body(scene, world, 'dynamic', 'cylinder',
         { hh: 1.0, radius: 0.7 }, { x: -7, y: 15, z: 8 },
-        { x: 0, y: 1, z: 0 }, 'green');
+        { x: 0, y: 1, z: 0 }, 'green', 'cylinderBody');
     bodys.push(cylinderBody);
 
     const coneBody = body(scene, world, 'dynamic', 'cone',
         { hh: 1.0, radius: 1 }, { x: 7, y: 15, z: -8 },
-        { x: 0, y: 1, z: 0 }, 'purple');
+        { x: 0, y: 1, z: 0 }, 'purple', 'coneBody');
     bodys.push(coneBody);
 
     // Character Model
@@ -391,6 +417,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
     /**
      * Animate
      */
+    const raycaster = new THREE.Raycaster()
     const clock = new THREE.Clock()
     let lastElapsedTime = 0
 
@@ -408,6 +435,7 @@ import('@dimforge/rapier3d').then(RAPIER => {
 
         world.step();
         bodys.forEach(body => {
+            // console.log(body);
             let position = body.rigid.translation();
             let rotation = body.rigid.rotation();
 
@@ -420,10 +448,25 @@ import('@dimforge/rapier3d').then(RAPIER => {
                     rotation.y,
                     rotation.z,
                     rotation.w));
+
+            // point information from userData
+            if(sceneReady) {
+                body.mesh.userData.position.x = position.x
+                body.mesh.userData.position.y = position.y
+                body.mesh.userData.position.z = position.z
+
+                const screenPosition = body.mesh.position.clone();
+                screenPosition.project(camera);
+
+                const translateX = screenPosition.x * window.innerWidth * 0.5;
+                const translateY = - screenPosition.y * window.innerHeight * 0.5;
+                body.mesh.userData.element.style.transform = `translateX(${translateX}px) translateY(${translateY}px)`;
+                body.mesh.userData.element.classList.add("visible");
+            }
         });
 
         // Update controls
-        orbitControls.update()
+        orbitControls.update();
 
         // Stats
         stats.update()

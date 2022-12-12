@@ -29,10 +29,98 @@
             transform-origin: 100% 0;
             transition: transform 1.5s ease-in-out;
         }
+
+        .point {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+        }
+
+        .point .label
+        {
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00000077;
+            border: 1px solid #ffffff77;
+            color: #ffffff;
+            font-family: Helvetica, Arial, sans-serif;
+            text-align: center;
+            line-height: 40px;
+            font-weight: 100;
+            font-size: 14px;
+
+            cursor: help;
+            transform: scale(0, 0);
+            transition: transform 0.3s;
+        }
+
+        .point.visible .label {
+            transform: scale(1, 1);
+        }
+
+        .point .text
+        {
+            position: absolute;
+            top: 30px;
+            left: -120px;
+            width: 200px;
+            padding: 20px;
+            border-radius: 4px;
+            background: #00000077;
+            border: 1px solid #ffffff77;
+            color: #ffffff;
+            line-height: 1.3em;
+            font-family: Helvetica, Arial, sans-serif;
+            font-weight: 100;
+            font-size: 14px;
+
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        .point:hover .text {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <!-- <canvas class="webgl"></canvas> -->
     <div class="loading-bar"></div>
+
+    <div class="point point-0">
+        <div class="label">Cube</div>
+        <div class="text">
+            This is cube object
+        </div>
+    </div>
+    <div class="point point-1">
+        <div class="label">Cylinder</div>
+        <div class="text">
+            This is cylinder object
+        </div>
+    </div>
+    <div class="point point-2">
+        <div class="label">Cone</div>
+        <div class="text">
+            This is cone object
+        </div>
+    </div>
+    <div class="point point-3">
+        <div class="label">Sphere</div>
+        <div class="text">
+            This is sphere 1 object
+        </div>
+    </div>
+    <div class="point point-4">
+        <div class="label">Sphere</div>
+        <div class="text">
+            This is sphere 2 object
+        </div>
+    </div>
 </body>
 </html>
