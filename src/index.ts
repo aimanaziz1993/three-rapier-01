@@ -156,7 +156,7 @@ const loadingManager = new THREE.LoadingManager(
 
             // Animate camera
             gsap.to(camera.position, {
-                y: 6, z:4, duration: 4, ease: 'power3.inOut',
+                y: 6, z:4, duration: 5, ease: 'circ.out',
             })
 
             // hide progress bar
@@ -421,6 +421,11 @@ import('@dimforge/rapier3d').then(RAPIER => {
     const clock = new THREE.Clock()
     let lastElapsedTime = 0
 
+    // compass direction
+    var compass = document.querySelector<HTMLElement>('#compass');
+    var dir = new THREE.Vector3();
+    var sph = new THREE.Spherical();
+
     const tick = () =>
     {
         const elapsedTime = clock.getElapsedTime()
@@ -458,6 +463,28 @@ import('@dimforge/rapier3d').then(RAPIER => {
                 const screenPosition = body.mesh.position.clone();
                 screenPosition.project(camera);
 
+                raycaster.setFromCamera(screenPosition, camera)
+                const intersects = raycaster.intersectObjects(scene.children, true)
+
+                if(intersects.length === 0)
+                {
+                    body.mesh.userData.element.classList.add('visible')
+                }
+                else
+                {
+                    const intersectionDistance = intersects[0].distance
+                    const pointDistance = body.mesh.userData.position.distanceTo(camera.position)
+
+                    if(intersectionDistance < pointDistance)
+                    {
+                        body.mesh.userData.element.classList.remove('visible')
+                    }
+                    else
+                    {
+                        body.mesh.userData.element.classList.add('visible')
+                    }
+                }
+
                 const translateX = screenPosition.x * window.innerWidth * 0.5;
                 const translateY = - screenPosition.y * window.innerHeight * 0.5;
                 body.mesh.userData.element.style.transform = `translateX(${translateX}px) translateY(${translateY}px)`;
@@ -473,6 +500,11 @@ import('@dimforge/rapier3d').then(RAPIER => {
 
         // Render
         renderer.render(scene, camera)
+
+        // Compass Update
+        camera.getWorldDirection(dir);
+        sph.setFromVector3(dir);
+        compass.style.transform = `rotate(${THREE.MathUtils.radToDeg(sph.theta) - 180}deg)`;
 
         // Call tick again on the next frame
         window.requestAnimationFrame(tick)

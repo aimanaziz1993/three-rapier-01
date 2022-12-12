@@ -58,6 +58,11 @@
             transition: transform 0.3s;
         }
 
+        .point:hover .label {
+            color: #ddd;
+            transform: 20px 20px;
+        }
+
         .point.visible .label {
             transform: scale(1, 1);
         }
@@ -85,6 +90,10 @@
 
         .point:hover .text {
             opacity: 1;
+        }
+
+        svg {
+            transform-origin: center center;
         }
     </style>
 </head>
@@ -121,6 +130,25 @@
         <div class="text">
             This is sphere 2 object
         </div>
+    </div>
+
+    <div id="compassContainer" style="position: absolute;">
+        <svg version="1.1" id="compass" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="150px" height="150px" viewBox="-10 -10 20 20">
+        <g>
+            <g>
+            <path d="M 7, 0 A 7, 7 0 1,0 0,7" stroke-width="0.5" stroke="rgba(0, 255, 255, .5)" fill="transparent">
+                <animateTransform attributeType="xml" attributeName="transform" type="rotate" from="360 0 0" to="0 0 0" dur="4s" repeatCount="indefinite" />
+            </path>
+            <path d="M 8, 0 A 8, 8 0 1,0 0,8" stroke-width="2" stroke="rgba(0, 255, 255, .25)" fill="transparent">
+                <animateTransform attributeType="xml" attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="6s" repeatCount="indefinite" />
+            </path>
+            <line x1="-10" y1="0" x2="-5" y2="0" stroke="#0ff" />
+            <line x1="10" y1="0" x2="5" y2="0" stroke="#0ff" />
+            <line x1="0" y1="-10" x2="0" y2="-5" stroke="#0ff" />
+            <line x1="0" y1="10" x2="0" y2="5" stroke="#f00" />
+            </g>
+        </g>
+        </svg>
     </div>
 </body>
 </html>
